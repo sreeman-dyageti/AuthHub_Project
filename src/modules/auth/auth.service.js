@@ -20,4 +20,22 @@ export const registerUser = async ({ email, password, firstName, lastName }) => 
     VALUES ($1, $2, $3, $4, 'PENDING_VERIFICATION')
     RETURNING id, email, first_name, last_name, status, created_at;
   `;
+
+  const result = await query(insertQuery, [email, passwordHash, firstName, lastName]);
+  const newUser = result.rows[0];
+
+  //Generate the 15-minute Verification JWT
+  const verificationToken = jwt.sign(
+    { 
+      userId: newUser.id, 
+      purpose: 'EMAIL_VERIFICATION' 
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  return {
+    user: newUser,
+    verificationToken
+  };
 };
