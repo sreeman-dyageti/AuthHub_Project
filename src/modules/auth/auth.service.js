@@ -4,17 +4,26 @@ import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
 
 // custom uid generation
-const generateCustomId = (firstName, lastName) => {
+const generateCustomId = (first_name, last_name) => {
   const randomNum = crypto.randomInt(1000, 10000);
-  const base = `${firstName.toLowerCase().trim()}_${lastName.toLowerCase().trim()}_${randomNum}`;
+  const base = `${first_name.toLowerCase().trim()}_${last_name.toLowerCase().trim()}_${randomNum}`;
+  return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
+};
+
+// custom Email generation
+const generateCustomEmailID = (email) => {
+  const base = `${email.toLowerCase()}`;
   return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
 };
 
 
 export const registerUser = async ({ email, password, first_name, last_name }) => {
     
+  // custom email
+  const emailHash = generateCustomEmailID(email);
+
   //check whether the user registered or not
-  const userCheck = await query('SELECT user_id FROM users WHERE email = $1', [email]);
+  const userCheck = await query('SELECT user_id FROM users WHERE email = $1', [emailHash]);
   if (userCheck.rows.length > 0) {
     throw new Error('Email is already registered.');
   }
@@ -33,13 +42,13 @@ export const registerUser = async ({ email, password, first_name, last_name }) =
   RETURNING user_id, email, first_name, last_name, created_at;
 `;
 
-  const result = await query(insertQuery, [customUserId, email, passwordHash, first_name, last_name]);
+  const result = await query(insertQuery, [customUserId, emailHash, passwordHash, first_name, last_name]);
   const newUser = result.rows[0];
 
   //Generate the 15-minute Verification JWT
   const verificationToken = jwt.sign(
     { 
-      userId: newUser.id,
+      userId: newUser.user_id,
       purpose: 'EMAIL_VERIFICATION' 
     },
     process.env.JWT_SECRET,
