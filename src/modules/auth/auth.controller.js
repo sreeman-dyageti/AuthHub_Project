@@ -2,20 +2,28 @@ import validator from "validator";
 import { registerUser } from './auth.service.js';
 import { loginUser } from "./auth.service.js";
 
+// registration
 export const register = async (req, res) => {
   try {
-    
     const { email, password, first_name, last_name } = req.body;
+
     // validation
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+    if (!email || !password?.trim()){
+      return res.status(400).json({ error: 'Email and Password are Required' });
+    }
+    if (password.length < 8){
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.'})
+    }
+    if (!first_name?.trim() || !last_name?.trim()){
+      return res.status(400).json({ error: 'first_name and last_name are Required' });
     }
 
-  if (!validator.isEmail(email)) {
-    return res.status(400).json({
-      error: "Please provide a valid email address",
-    });
-  }
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({
+        error: "Please provide a valid email address",
+      });
+    }
+
     
     const result = await registerUser({ email, password, first_name, last_name });
     // send successfully message
@@ -32,11 +40,12 @@ export const register = async (req, res) => {
   }
 };
 
+// Login
 export const login = async (req, res) => {
   try {
       const {email, password} = req.body;
       // validation
-      if (!email || !password){
+      if (!email || !password?.trim()){
         return res.status(400).json({error: 'email and password are required'});
       }
 
@@ -51,8 +60,7 @@ export const login = async (req, res) => {
     return res.status(201).json({
       message: 'User verified successfully',
       data: {
-        user: result.user,
-        verificationToken: result.verificationToken
+        user: result.user
       }
     });
 
