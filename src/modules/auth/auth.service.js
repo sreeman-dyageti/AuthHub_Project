@@ -2,8 +2,6 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
-import { error } from 'console';
-import { parse } from 'path';
 
 // custom uid generation
 const generateCustomId = (first_name, last_name) => {
@@ -14,7 +12,7 @@ const generateCustomId = (first_name, last_name) => {
 
 // custom Email generation
 const generateCustomEmailID = (email) => {
-  const base = `${email.toLowerCase()}`;
+  const base = `${email.toLowerCase().trim()}`;
   return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
 };
 
