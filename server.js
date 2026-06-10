@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { query } from './src/config/db.js'; 
 import authRouter from './src/modules/auth/auth.routes.js'
-import loginRouter from './src/modules/auth/auth.routes.js'
+import rolesRouter from './src/modules/roles/roles.routes.js'
 
 dotenv.config();
 
@@ -14,7 +14,8 @@ app.use(express.json());
 const PORT = process.env.PORT || 8080;
 
 app.use('/v1/auth', authRouter);
-app.use('/vi/auth', authRouter);
+app.use('/v1/roles', rolesRouter);
+
 
 app.listen(PORT, async () => {
   console.log(`AuthHub Server is running on port ${PORT}`);

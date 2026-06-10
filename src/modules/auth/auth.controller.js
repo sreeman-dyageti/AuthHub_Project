@@ -59,9 +59,7 @@ export const login = async (req, res) => {
 
     return res.status(201).json({
       message: 'User verified successfully',
-      data: {
-        user: result.user
-      }
+      data: result
     });
 
   } catch (error) {
