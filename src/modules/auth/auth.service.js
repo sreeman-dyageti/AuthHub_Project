@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
+import { error } from 'console';
+import { parse } from 'path';
 
 // custom uid generation
 const generateCustomId = (first_name, last_name) => {
@@ -16,12 +18,10 @@ const generateCustomEmailID = (email) => {
   return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
 };
 
-
+// user Registration 
 export const registerUser = async ({ email, password, first_name, last_name }) => {
-    
   // custom email
-  const emailHash = generateCustomEmailID(email);
-
+   const emailHash = generateCustomEmailID(email);
   //check whether the user registered or not
   const userCheck = await query('SELECT user_id FROM users WHERE email = $1', [emailHash]);
   if (userCheck.rows.length > 0) {
@@ -59,4 +59,33 @@ export const registerUser = async ({ email, password, first_name, last_name }) =
     user: newUser,
     verificationToken
   };
+};
+
+// Login verification
+export const loginUser = async ({ email, password }) => {
+
+  const generatedUserEmailId = crypto
+    .createHash("sha256")
+    .update(email.toLowerCase().trim(), "utf8")
+    .digest("hex");
+
+  const user = await query(
+    "SELECT user_id, password_hash FROM users WHERE email = $1",
+    [generatedUserEmailId]
+  );
+
+  if (user.rows.length === 0) {
+    throw new Error("Invalid Email");
+  }
+
+  const isMatch = await bcrypt.compare(
+    password,
+    user.rows[0].password_hash
+  );
+
+  if (!isMatch) {
+    throw new Error("Invalid Password");
+  }
+
+  return user.rows[0];
 };
