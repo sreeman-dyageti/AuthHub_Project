@@ -49,27 +49,27 @@ export const verifyUser = async(req, res) => {
 export const updateUser = async (req, res) => {
   try {
 
-    // Step 1 — read from body
+   
     const { user_id, org_id, role_id, status } = req.body;
 
-    // Step 2 — validate required fields
+   
     if (!user_id || !org_id) {
       return res.status(400).json({
         message: 'user_id and org_id are required.'
       });
     }
 
-    // Step 3 — must send at least one field to update
+
     if (!role_id && !status) {
       return res.status(400).json({
         message: 'Provide at least role_id or status to update.'
       });
     }
 
-    // Step 4 — call service
+    
     const result = await updateUserAuthority({ user_id, org_id, role_id, status });
 
-    // Step 5 — send response
+   
     return res.status(200).json({
       message: 'User authority updated successfully.',
       data: result
