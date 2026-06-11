@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { query } from '../../config/db.js';
 
+
 const generateInviteToken = () => {
   return crypto.randomBytes(32).toString('hex');
 };
@@ -84,6 +85,31 @@ export const verifyUserAuthority = async ({userToken}) => {
   return {
     userAuthority : result.rows[0]
   };
+
+
+};
+export const updateUserAuthority = async({user_id , org_id , role_id , status}) => {
+    const existingCheck = await query(
+        'SELECT * FROM user_authority WHERE user_id = $1 AND org_id = $2', [user_id,org_id]
+    );
+
+    if(!existingCheck.rows.length === 0 ){
+        throw new Error('user authority record not found ');
+
+    }
+    if(status){
+        const allowed =['ACTIVE' , 'INACTIVE' , 'PENDING'];
+        if(!allowed.includes(status)){
+            throw new Error('status must be ACTIVE , INACTIVE or PENDING ');
+        }
+    }
+    const result = await query(
+        'UPDATE user_authority SET role_id = COALESCE($1 , role_id ), status = COALESCE( $2 , status ) WHERE user_id = $3 AND org_id = $4 RETURNING user_id , org_id , role_id ,status;',
+        [role_id ?? null , status ?? null , user_id , org_id]
+    );
+
+    return {userAuthority : result.rows[0]};
+
 
 
 };
