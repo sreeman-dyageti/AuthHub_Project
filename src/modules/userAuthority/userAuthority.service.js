@@ -8,7 +8,6 @@ const generateInviteToken = () => {
 
 export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
 
-  // check if user already in this org — correct table
   const existingCheck = await query(
     'SELECT user_id FROM user_authority WHERE user_id = $1 AND org_id = $2',
     [user_id, org_id]
@@ -17,7 +16,6 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     throw new Error('User is already part of this organisation.');
   }
 
-  // check if user exists — query USERS table
   const userCheck = await query(
     'SELECT user_id FROM users WHERE user_id = $1',
     [user_id]
@@ -26,7 +24,6 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     throw new Error('User not found.');
   }
 
-  // check if org exists — query ORGANIZATIONS table
   const orgCheck = await query(
     'SELECT org_id FROM organizations WHERE org_id = $1 AND status = $2',
     [org_id, 'ACTIVE']
@@ -35,7 +32,6 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     throw new Error('Organisation not found or not active.');
   }
 
-  // check if role exists — query ROLES table
   const roleCheck = await query(
     'SELECT role_id FROM roles WHERE role_id = $1',
     [role_id]
@@ -44,7 +40,6 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     throw new Error('Role not found.');
   }
 
-  // generate token and insert
   const inviteToken = generateInviteToken();
 
   const insertQuery = `
