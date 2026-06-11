@@ -5,7 +5,7 @@ import { loginUser } from "./auth.service.js";
 // registration
 export const register = async (req, res) => {
   try {
-    const { email, password, first_name, last_name } = req.body;
+    const { email, password, first_name, last_name,  org_id, role_name} = req.body;
 
     // validation
     if (!email || !password?.trim()){
@@ -24,8 +24,20 @@ export const register = async (req, res) => {
       });
     }
 
-    
-    const result = await registerUser({ email, password, first_name, last_name });
+    if (!org_id?.trim() || !role_name?.trim()) {
+      return res.status(400).json({
+        error: "Organization ID and Role Name are required"
+      });
+    }
+
+    const result = await registerUser({ email, password, first_name, last_name, org_id, role_name });
+    console.log(result);
+
+     if (!result.success) {
+    return res.status(400).json({
+    error: result.message
+    });
+   }  
     // send successfully message
     res.status(201).json({
       message: 'User registered successfully. Please verify your email.',
@@ -55,8 +67,12 @@ export const login = async (req, res) => {
       });
   }
 
+    if (!result.success) {
+    return res.status(400).json({
+      error: result.message
+    });
+  }
     const result = await loginUser({ email, password });
-
     return res.status(201).json({
       message: 'User verified successfully',
       data: result

@@ -17,14 +17,40 @@ const generateCustomEmailID = (email) => {
 };
 
 // user Registration 
-export const registerUser = async ({ email, password, first_name, last_name }) => {
+export const registerUser = async ({ email, password, first_name, last_name, org_id, role_name}) => {
   // custom email
    const emailHash = generateCustomEmailID(email);
   //check whether the user registered or not
   const userCheck = await query('SELECT user_id FROM users WHERE email = $1', [emailHash]);
   if (userCheck.rows.length > 0) {
-    throw new Error('Email is already registered.');
+    return {
+    success: false,
+    message: 'Email is already registered.'
+  };
   }
+
+  // check whether the organization id existed or not 
+    const checkOrg_Id = await query('SELECT org_id FROM organizations WHERE org_id = $1', [org_id]);
+
+    if (checkOrg_Id.rows.length === 0) {
+    return {
+    success: false,
+    message: 'Invalid Organization Id.'
+  };
+}
+
+//  check that role is avaliable or not 
+const Role = role_name.trim().toLowerCase();
+
+const roleCheck = await query(
+  'SELECT role_id FROM roles WHERE LOWER(role_name) = $1',[Role]);
+
+if (roleCheck.rows.length === 0) {
+    return {
+    success: false,
+    message: 'No available Role!'
+  };
+}
 
   // salt rounds and pass Hash
   const saltRounds = 10;
@@ -35,12 +61,12 @@ export const registerUser = async ({ email, password, first_name, last_name }) =
 
   //insert user to the database
  const insertQuery = `
-  INSERT INTO users (user_id, email, password_hash, first_name, last_name)
-  VALUES ($1, $2, $3, $4, $5)
-  RETURNING user_id, email, first_name, last_name, created_at;
+  INSERT INTO users (user_id, email, password_hash, first_name, last_name, role)
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING user_id, email, first_name, last_name, created_at, role;
 `;
 
-  const result = await query(insertQuery, [customUserId, emailHash, passwordHash, first_name, last_name]);
+  const result = await query(insertQuery, [customUserId, emailHash, passwordHash, first_name, last_name ,Role]);
   const newUser = result.rows[0];
 
   //Generate the 15-minute Verification JWT
@@ -53,10 +79,11 @@ export const registerUser = async ({ email, password, first_name, last_name }) =
     { expiresIn: '15m' }
   );
 
-  return {
-    user: newUser,
-    verificationToken
-  };
+    return {
+      success: true,
+      user: newUser,
+      verificationToken
+    };
 };
 
 // Login verification
@@ -73,7 +100,10 @@ export const loginUser = async ({ email, password }) => {
   );
 
   if (user.rows.length === 0) {
-    throw new Error("Invalid Email");
+   return {
+    success: false,
+    message: 'Invalid Email!'
+  };
   }
 
   const isMatch = await bcrypt.compare(
@@ -82,8 +112,13 @@ export const loginUser = async ({ email, password }) => {
   );
 
   if (!isMatch) {
-    throw new Error("Invalid Password");
+    return {
+    success: false,
+    message: 'Invalid Password!'
+  };
   }
-
-  return user.rows[0];
+ return {
+  success: true,
+  data: user.rows[0]
+};
 };
