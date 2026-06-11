@@ -59,3 +59,31 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     inviteToken
   };
 };
+export const verifyUserAuthority = async ({userToken}) => {
+    const tokenCheck = await query(
+        'SELECT * FROM user_authority WHERE invite_token =$1',[userToken]
+    );
+    if(tokenCheck.rows.length === 0){
+        throw new Error ('invite token invalid or expired');
+    }
+    const record = tokenCheck.rows[0];
+    if(record.status === 'ACTIVE'){
+        throw new Error ('user is already active in the organisation ');
+    }
+
+    const updateQuery =
+        `
+    UPDATE user_authority
+    SET status = 'ACTIVE',
+        invite_token = NULL
+    WHERE invite_token = $1
+    RETURNING user_id, org_id, role_id, status;
+  `;
+    
+  const result = await query(updateQuery,[userToken]);
+  return {
+    userAuthority : result.rows[0]
+  };
+
+
+};
