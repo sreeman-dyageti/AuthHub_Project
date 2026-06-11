@@ -1,4 +1,4 @@
-import {createUserAuthority } from './userAuthority.service.js';
+import {createUserAuthority, verifyUserAuthority } from './userAuthority.service.js';
 export const inviteUser = async(req , res ) => {
     try{
 
@@ -23,4 +23,26 @@ export const inviteUser = async(req , res ) => {
         });
     }
 
+};
+export const verifyUser = async(req, res) => {
+    try{
+
+        const{ userToken  } = req.body;
+        if(!userToken) {
+            return res.status(400).json({
+                message : 'Invite token is required '
+            });
+        }
+        const result = await verifyUserAuthority({userToken});
+        return res.status(200).json({
+            message : 'user verified successfully and added to organisation ',
+            data : result 
+        });
+
+    }
+    catch(error){
+        return res.message(400).json({
+            message: error.message
+        });
+    }
 };
