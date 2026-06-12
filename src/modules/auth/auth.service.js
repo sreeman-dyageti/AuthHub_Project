@@ -129,6 +129,16 @@ export const verifyUserEmail = async ({token}) => {
   }
 } 
 
+// Create a Refresh Token Generator
+const generateRefreshToken = (userId) => {
+  return jwt.sign(
+    { userId },
+    process.env.REFRESH_SECRET,
+    {
+      expiresIn: '7d'
+    }
+  );
+};
 
 // Login verification
 export const loginUser = async ({ email, password }) => {
@@ -181,9 +191,25 @@ const accessToken = jwt.sign(
   }
 );
 
+const refreshToken = generateRefreshToken(
+  user.rows[0].user_id
+);
+
+// save refresh token 
+await query(`INSERT INTO refresh_tokens(user_id, refresh_token, expires_at)VALUES($1, $2, NOW() + INTERVAL '7 days')`,
+  [user.rows[0].user_id, refreshToken]
+);
+
+console.log(refreshToken);
 return {
   success: true,
-  data: user.rows[0],
-  accessToken
+  data:{
+    user_id: user.rows[0].user_id,
+    role: user.rows[0].role
+  },
+  accessToken, 
+  refreshToken
 };
+
+
 };
