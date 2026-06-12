@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
+import { error } from 'console';
 
 const generateOrgId = (name)=>{
   const cleanName = name.replace(/\s+/gi, '');
@@ -18,7 +19,10 @@ export const createOrgService = async ({ name, email, domain }) => {
   );
 
   if (existingOrg.rows.length > 0) {
-    throw new Error('Organisation already exists.');
+    return {
+      success: false,
+      message:'Organisation already exists.'
+    }
   }
 
   const orgId = generateOrgId(name);
@@ -60,7 +64,10 @@ export const verifyOrgService = async (token) => {
   );
 
   if (orgResult.rows.length === 0) {
-    throw new Error('Invalid verification token.');
+    return{
+      success : false,
+      message: "Invalid verification token"
+    }
   }
 
   const organisation = orgResult.rows[0];

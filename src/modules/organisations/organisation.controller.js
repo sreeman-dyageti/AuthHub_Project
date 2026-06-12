@@ -2,19 +2,29 @@ import validator from 'validator';
 import {
   createOrgService,verifyOrgService
 }from './organisation.service.js';
+import isEmail from 'validator/lib/isEmail.js';
 export const createOrg = async (req , res ) => {
 
   try{
     const {name , email , domain  } = req.body;
-    if(!name || !email ){
-      return res.status(400).json({
-        error : "organisation name and email are required. "
-
-      });
+    
+    const errors = [];
+    if(!name || name.trim() === ''){
+      errors.push('organisation name is required');
+    } 
+    if(!email || email.trim() === ''){
+      errors.push('organisation email are required');
     }
-    if(!validator.isEmail(email)){
-      return  res.status (400).json({
-        error : "invalid organiation emailId"
+    if(!domain || domain.trim() === ''){
+      errors.push('organisation domain are required');
+    }
+    if(email && !validator.isEmail(email)){
+      errors.push('Invalid email format ');
+    }
+    if(errors.length > 0){
+      return res.status(400).json({
+        success : false,
+        errors
       });
     }
 
@@ -27,6 +37,7 @@ export const createOrg = async (req , res ) => {
   }
   catch (error) {
 
+    
   console.error("CREATE ORG ERROR:", error);
 
   res.status(400).json({

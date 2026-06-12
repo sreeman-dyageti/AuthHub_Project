@@ -30,7 +30,7 @@ export const registerUser = async ({ email, password, first_name, last_name, org
   }
 
   // check whether the organization id existed or not 
-    const checkOrg_Id = await query('SELECT org_id FROM organizations WHERE org_id = $1', [org_id]);
+    const checkOrg_Id = await query('SELECT org_id  , status FROM organizations WHERE org_id = $1', [org_id]);
 
     if (checkOrg_Id.rows.length === 0) {
     return {
@@ -38,6 +38,13 @@ export const registerUser = async ({ email, password, first_name, last_name, org
     message: 'Invalid Organization Id.'
   };
 }
+const orgStatusCheck  = checkOrg_Id.rows[0];
+if(orgStatusCheck.status !== 'ACTIVE'){
+  return{
+    success : false ,
+    message : 'organisation is not verified , please verify the organistion first '
+  };
+} 
 
 //  check that role is avaliable or not 
 const Role = role_name.trim().toLowerCase();
