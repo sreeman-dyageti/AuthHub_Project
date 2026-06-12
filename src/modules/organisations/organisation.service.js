@@ -47,12 +47,13 @@ export const createOrgService = async ({ name, email, domain }) => {
     orgId,
     name,
     email,
-    domain,
-    verificationToken
+    domain
+    
   ]);
 
   return {
     organisation: result.rows[0],
+    verificationToken
     
   };
 };
