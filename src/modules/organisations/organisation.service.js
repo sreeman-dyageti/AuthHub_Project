@@ -49,8 +49,8 @@ export const createOrgService = async ({ name, email, domain }) => {
   );
 
   const insertQuery = `
-    INSERT INTO organizations (org_id, name, email, domain, verification_token)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO organizations (org_id, name, email, domain,verification_token)
+    VALUES ($1, $2, $3, $4,$5)
     RETURNING *;
   `;
 
@@ -60,13 +60,16 @@ export const createOrgService = async ({ name, email, domain }) => {
     email,
     domain,
     verificationToken
+    
+    
   ]);
-
+  const organisaton = result.rows[0];
+  delete organisaton.verification_token
   return {
-    organisation: result.rows[0],
-    
-    
+    organisaton,verificationToken
   };
+
+
 };
 
 export const verifyOrgService = async (token) => {
