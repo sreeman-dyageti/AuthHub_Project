@@ -61,10 +61,9 @@ if (roleCheck.rows.length === 0) {
 
   //insert user to the database
  const insertQuery = `
-  INSERT INTO users (user_id, email, password_hash, first_name, last_name, role)
-  VALUES ($1, $2, $3, $4, $5, $6)
-  RETURNING user_id, email, first_name, last_name, created_at, role;
-`;
+  INSERT INTO users (user_id, email, password_hash, first_name, last_name, role, status)
+  VALUES ($1, $2, $3, $4, $5, $6, FALSE)
+  RETURNING user_id, email, first_name, last_name, created_at, role;`;
 
   const result = await query(insertQuery, [customUserId, emailHash, passwordHash, first_name, last_name ,Role]);
   const newUser = result.rows[0];
@@ -86,6 +85,44 @@ if (roleCheck.rows.length === 0) {
     };
 };
 
+// Verify user Email registration using JWT session
+export const verifyUserEmail = async ({token}) => {
+  try {
+    const decode=jwt.verify(
+      token, 
+      process.env.JWT_SECRET
+    );
+    if (decode.purpose !== 'EMAIL_VERIFICATION') {
+      return {
+        success: false,
+        message: 'Invalid token purpose'
+      };
+    }
+
+    const result = await query( `UPDATE users SET status = TRUE WHERE user_id = $1 RETURNING user_id `,[decode.userId]);
+
+    if (result.rows.length === 0) {
+      return {
+        success: false,
+        message: 'User not found'
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Email verified successfully'
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Invalid or Expired Token'
+    }
+    
+  }
+} 
+
+
 // Login verification
 export const loginUser = async ({ email, password }) => {
 
@@ -95,7 +132,7 @@ export const loginUser = async ({ email, password }) => {
     .digest("hex");
 
   const user = await query(
-    "SELECT user_id, password_hash FROM users WHERE email = $1",
+    "SELECT user_id, password_hash, status FROM users WHERE email = $1",
     [generatedUserEmailId]
   );
 
@@ -105,6 +142,13 @@ export const loginUser = async ({ email, password }) => {
     message: 'Invalid Email!'
   };
   }
+
+  if (!user.rows[0].status) {
+  return {
+    success: false,
+    message: 'Please verify your email first'
+  };
+}
 
   const isMatch = await bcrypt.compare(
     password,

@@ -1,6 +1,7 @@
 import validator from "validator"; 
 import { registerUser } from './auth.service.js';
 import { loginUser } from "./auth.service.js";
+import {verifyUserEmail} from "./auth.service.js"
 
 // registration
 export const register = async (req, res) => {
@@ -52,6 +53,35 @@ export const register = async (req, res) => {
   }
 };
 
+// Verify registration using JWT session
+export const verifyEmail = async (req, res) => {
+    try {
+      const {token} = req.query
+      
+      if (!token){
+        return res.status(400).json({
+          error: 'Token requied!'
+        });
+      }
+
+      const result = await verifyUserEmail({token});
+      if (!result.success){
+        return res.status(400).json({
+          error: result.message
+        })
+      }
+
+      return res.status(200).json({
+        message: result.message
+      })
+
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message
+      })    
+    }
+}
+
 // Login
 export const login = async (req, res) => {
   try {
@@ -67,18 +97,18 @@ export const login = async (req, res) => {
       });
   }
 
-    if (!result.success) {
+  const result = await loginUser({ email, password }); 
+   if (!result.success) {
     return res.status(400).json({
       error: result.message
     });
   }
-    const result = await loginUser({ email, password });
-    return res.status(201).json({
-      message: 'User verified successfully',
+    return res.status(200).json({
+      message: 'Login Successful!',
       data: result
     });
 
   } catch (error) {
-   return res.status(400).json({ error: error.message });
+   return res.status(500).json({ error: error.message });
 }
 }
