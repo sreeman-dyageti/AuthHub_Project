@@ -20,8 +20,19 @@ export const createOrgService = async ({ name, email, domain }) => {
 
   if (existingOrg.rows.length > 0) {
     return {
-      success: false,
+      success: true,
+      alreadyExists : true,
       message:'Organisation already exists.'
+    }
+  }
+  const existingDomain = await query(
+    'SELECT org_id FROM organizations WHERE LOWER(domain) = LOWER($1)',[domain]
+  );
+  if(existingDomain.rows.length > 0 ){
+    return {
+      success : true , 
+      alreadyExists : true ,
+      message : 'domain already exists under a organisation, so please enter a unique domain. '
     }
   }
 
@@ -47,13 +58,13 @@ export const createOrgService = async ({ name, email, domain }) => {
     orgId,
     name,
     email,
-    domain
-    
+    domain,
+    verificationToken
   ]);
 
   return {
     organisation: result.rows[0],
-    verificationToken
+    
     
   };
 };

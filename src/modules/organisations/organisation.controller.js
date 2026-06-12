@@ -29,7 +29,13 @@ export const createOrg = async (req , res ) => {
     }
 
     const result = await createOrgService ({name , email , domain});
-    res.status(201).json({
+    if(result.alreadyExists){
+      return res.status(200).json({
+        success : true , 
+        message : result.message
+      });
+    }
+     return res.status(201).json({
       message : 'organisation created successfully. please verify organisation. ',
       data : result 
     });
@@ -37,7 +43,7 @@ export const createOrg = async (req , res ) => {
   }
   catch (error) {
 
-    
+
   console.error("CREATE ORG ERROR:", error);
 
   res.status(400).json({
@@ -51,9 +57,9 @@ export const createOrg = async (req , res ) => {
 };
 export const verifyOrg = async (req , res) => {
   try {
-    const {token } = req.params;
+    const {token} = req.params;
    const result = await verifyOrgService(token);
-   res.status(200).json(result );  
+     return res.status(200).json(result);  
   }
   catch (error) {
 
