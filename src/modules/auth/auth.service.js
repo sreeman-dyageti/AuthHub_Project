@@ -132,7 +132,7 @@ export const loginUser = async ({ email, password }) => {
     .digest("hex");
 
   const user = await query(
-    "SELECT user_id, password_hash, status FROM users WHERE email = $1",
+    "SELECT user_id, password_hash, status, role FROM users WHERE email = $1",
     [generatedUserEmailId]
   );
 
@@ -161,8 +161,22 @@ export const loginUser = async ({ email, password }) => {
     message: 'Invalid Password!'
   };
   }
- return {
+  
+// login JWT Access Token
+const accessToken = jwt.sign(
+  {
+    userId: user.rows[0].user_id,
+    role: user.rows[0].role
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: '15m'
+  }
+);
+
+return {
   success: true,
-  data: user.rows[0]
+  data: user.rows[0],
+  accessToken
 };
 };

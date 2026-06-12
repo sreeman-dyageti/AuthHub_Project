@@ -32,7 +32,6 @@ export const register = async (req, res) => {
     }
 
     const result = await registerUser({ email, password, first_name, last_name, org_id, role_name });
-    console.log(result);
 
      if (!result.success) {
     return res.status(400).json({
@@ -87,7 +86,7 @@ export const login = async (req, res) => {
   try {
       const {email, password} = req.body;
       // validation
-      if (!email || !password?.trim()){
+      if (!email || !password){
         return res.status(400).json({error: 'email and password are required'});
       }
 
@@ -105,7 +104,8 @@ export const login = async (req, res) => {
   }
     return res.status(200).json({
       message: 'Login Successful!',
-      data: result
+      data: result.data,
+      accessToken: result.accessToken
     });
 
   } catch (error) {
