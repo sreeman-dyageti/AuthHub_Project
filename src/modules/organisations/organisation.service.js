@@ -2,12 +2,14 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
 
-const generateOrgId = (name, email) => {
-  const randomNum = crypto.randomInt(1000, 10000);
-  const base = `${name.toLowerCase().trim()}_${email.toLowerCase().trim()}_${randomNum}`;
-
-  return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
+const generateOrgId = (name)=>{
+  const cleanName = name.replace(/\s+/gi, '');
+  const firstName = cleanName.slice( 0 , 3);
+  const lastName = cleanName.slice(-3);
+  const randomNum = crypto.randomInt(1000 , 9999);
+  return `ORG_${firstName}${lastName}_${randomNum}`;
 };
+
 
 export const createOrgService = async ({ name, email, domain }) => {
   const existingOrg = await query(
@@ -19,7 +21,7 @@ export const createOrgService = async ({ name, email, domain }) => {
     throw new Error('Organisation already exists.');
   }
 
-  const orgId = generateOrgId(name, email);
+  const orgId = generateOrgId(name);
   const verificationToken = jwt.sign(
     {
       orgId,

@@ -142,3 +142,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+# Personal learning notes
+ARCHITECTURE_DIAGRAMS.md
+AUTHENTICATION_GUIDE.md
+AUTH_DECISION_GUIDE.md
+LEARNING_GUIDE.md
+PRACTICAL_AUTH_GUIDE.md
+QUICK_REFERENCE.md
