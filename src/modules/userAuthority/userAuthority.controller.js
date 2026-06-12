@@ -11,6 +11,12 @@ export const inviteUser = async(req , res ) => {
 
         }
         const result = await createUserAuthority({user_id , org_id , role_id });
+        if(!result.success){
+            return res.status(400).json({
+                success: false,
+                message:result.message
+            });
+        }
         return res.status(201).json({
             message : 'user invited successfully .Awaiting for the verification',
             data : result 
@@ -27,7 +33,7 @@ export const inviteUser = async(req , res ) => {
 export const verifyUser = async(req, res) => {
     try{
 
-        const{ userToken  } = req.body;
+        const{ userToken  } = req.params;
         if(!userToken) {
             return res.status(400).json({
                 message : 'Invite token is required '
@@ -41,7 +47,7 @@ export const verifyUser = async(req, res) => {
 
     }
     catch(error){
-        return res.message(400).json({
+        return res.status(400).json({
             message: error.message
         });
     }
@@ -69,11 +75,18 @@ export const updateUser = async (req, res) => {
     
     const result = await updateUserAuthority({ user_id, org_id, role_id, status });
 
-   
-    return res.status(200).json({
-      message: 'User authority updated successfully.',
-      data: result
+   if(!result.success){
+    return res.status(400).json({
+        success : false ,
+        message: result.message
     });
+
+   }
+   return res.status(200).json({
+    success : true,
+    message : 'user authority has been updated successfully ',
+    data : result
+   })
 
   } catch (error) {
     return res.status(400).json({

@@ -3,6 +3,6 @@ import { verifyUser , inviteUser,updateUser } from './userAuthority.controller.j
 
 const router = express.Router();
 router.post('/invite', inviteUser);
-router.post('/verify', verifyUser );
+router.get('/verify/:userToken', verifyUser );
 router.put('/update',updateUser);
 export default router;

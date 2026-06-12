@@ -13,7 +13,10 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     [user_id, org_id]
   );
   if (existingCheck.rows.length > 0) {
-    throw new Error('User is already part of this organisation.');
+    return {
+      success : false,
+      message : 'User is already part of this organisation.'
+    };
   }
 
   const userCheck = await query(
@@ -21,7 +24,10 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     [user_id]
   );
   if (userCheck.rows.length === 0) {
-    throw new Error('User not found.');
+    return {
+      success : false,
+      message: 'User not found.'
+    };
   }
 
   const orgCheck = await query(
@@ -29,7 +35,10 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     [org_id, 'ACTIVE']
   );
   if (orgCheck.rows.length === 0) {
-    throw new Error('Organisation not found or not active.');
+    return {
+       success : false,
+       message : 'Organisation not found or not active.'
+    };
   }
 
   const roleCheck = await query(
@@ -37,7 +46,10 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
     [role_id]
   );
   if (roleCheck.rows.length === 0) {
-    throw new Error('Role not found.');
+    return {
+      success : false ,
+      message : 'Role not found.'
+    };
   }
 
   const inviteToken = generateInviteToken();
@@ -51,6 +63,7 @@ export const createUserAuthority = async ({ user_id, org_id, role_id }) => {
   const result = await query(insertQuery, [user_id, org_id, role_id, inviteToken]);
 
   return {
+    success : true,
     userAuthority: result.rows[0],
     inviteToken
   };
@@ -60,11 +73,17 @@ export const verifyUserAuthority = async ({userToken}) => {
         'SELECT * FROM user_authority WHERE invite_token =$1',[userToken]
     );
     if(tokenCheck.rows.length === 0){
-        throw new Error ('invite token invalid or expired');
+        return{
+          success : false, 
+          message : 'invite token invalid or expired'
+        };
     }
     const record = tokenCheck.rows[0];
     if(record.status === 'ACTIVE'){
-        throw new Error ('user is already active in the organisation ');
+        return{
+          success : false,
+          message:'user is already active in the organisation '
+        };
     }
 
     const updateQuery =
@@ -89,21 +108,31 @@ export const updateUserAuthority = async({user_id , org_id , role_id , status}) 
     );
 
     if(!existingCheck.rows.length === 0 ){
-        throw new Error('user authority record not found ');
+        return{
+          success : false,
+          message : 'user authority record not found '
+        };
 
     }
     if(status){
+      const normalizedStatus = status.trim().toUpperCase();
         const allowed =['ACTIVE' , 'INACTIVE' , 'PENDING'];
-        if(!allowed.includes(status)){
-            throw new Error('status must be ACTIVE , INACTIVE or PENDING ');
+        if(!allowed.includes(normalizedStatus)){
+            return{
+              success : false,
+              message: 'status must be ACTIVE , INACTIVE or PENDING '
+            };
         }
+        status = normalizedStatus;
     }
     const result = await query(
         'UPDATE user_authority SET role_id = COALESCE($1 , role_id ), status = COALESCE( $2 , status ) WHERE user_id = $3 AND org_id = $4 RETURNING user_id , org_id , role_id ,status;',
         [role_id ?? null , status ?? null , user_id , org_id]
     );
 
-    return {userAuthority : result.rows[0]};
+    return {
+      success : true,
+      userAuthority : result.rows[0]};
 
 
 

@@ -53,7 +53,7 @@ export const createOrgService = async ({ name, email, domain }) => {
 
   return {
     organisation: result.rows[0],
-    verificationToken
+    
   };
 };
 
