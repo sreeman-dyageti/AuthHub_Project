@@ -35,6 +35,13 @@ export const register = async (req, res) => {
 
     const result = await registerUser({ email, password, first_name, last_name, org_id, role_name });
 
+    if (result.needsVerification) {
+      return res.status(200).json({
+        message: result.message,
+        verificationToken: result.verificationToken
+      });
+    }
+
      if (!result.success) {
     return res.status(400).json({
     error: result.message
