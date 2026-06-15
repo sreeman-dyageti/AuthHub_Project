@@ -1,8 +1,8 @@
 import validator from 'validator';
-import {
-  createOrgService,verifyOrgService
-}from './organisation.service.js';
+import {createOrgService  ,  verifyOrgService} from './organisation.service.js';
 import isEmail from 'validator/lib/isEmail.js';
+
+
 export const createOrg = async (req , res ) => {
 
   try{
@@ -30,9 +30,16 @@ export const createOrg = async (req , res ) => {
 
     const result = await createOrgService ({name , email , domain});
     if(result.alreadyExists){
-      return res.status(200).json({
-        success : true , 
+      return res.status(409).json({
+        success : false , 
         message : result.message
+      });
+    }
+    if(result.verificationResent){
+      return res.status(200).json({
+        success : true,
+        message : result.message,
+        data : result
       });
     }
      return res.status(201).json({
