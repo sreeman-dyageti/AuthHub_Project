@@ -1,7 +1,9 @@
 import validator from "validator"; 
 import { registerUser } from './auth.service.js';
 import { loginUser } from "./auth.service.js";
-import {verifyUserEmail} from "./auth.service.js"
+import {verifyUserEmail} from "./auth.service.js";
+import { refreshAccessToken } from './auth.service.js';
+
 
 // registration
 export const register = async (req, res) => {
@@ -112,4 +114,32 @@ export const login = async (req, res) => {
   } catch (error) {
    return res.status(500).json({ error: error.message });
 }
+
 }
+
+// refresh Token
+export const refreshToken = async (req, res) => {
+
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      error: 'Refresh token required'
+    });
+  }
+
+  const result = await refreshAccessToken({
+    refreshToken
+  });
+
+  if (!result.success) {
+    return res.status(401).json({
+      error: result.message
+    });
+  }
+
+  return res.status(200).json({
+    accessToken: result.accessToken
+  });
+
+};

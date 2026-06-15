@@ -5,8 +5,8 @@ import { query } from '../../config/db.js';
 
 // custom uid generation
 const generateCustomId = (first_name, last_name) => {
-  const randomNum = crypto.randomInt(1000, 10000);
-  const base = `${first_name.toLowerCase().trim()}_${last_name.toLowerCase().trim()}_${randomNum}`;
+  
+  const base = `${first_name.toLowerCase().trim()}_${last_name.toLowerCase().trim()}`;
   return crypto.createHash('sha256').update(base, 'utf8').digest('hex');
 };
 
@@ -21,13 +21,39 @@ export const registerUser = async ({ email, password, first_name, last_name, org
   // custom email
    const emailHash = generateCustomEmailID(email);
   //check whether the user registered or not
-  const userCheck = await query('SELECT user_id FROM users WHERE email = $1', [emailHash]);
+  const userCheck = await query('SELECT user_id, status FROM users WHERE email = $1', [emailHash]);
   if (userCheck.rows.length > 0) {
-    return {
+    const existingUser = userCheck.rows[0];
+
+    // if user's email verified 
+  if (existingUser.status === true){
+       return {
     success: false,
     message: 'Email is already registered.'
   };
-  }
+}
+  //  if email not verified 
+  const now = new Data();
+ if (
+    existingUser.verification_token &&
+    existingUser.verification_token_expires_at > now
+  ) {
+    return {
+      success: false,
+      needsVerification: true,
+      message: 'Please verify your email.',
+      verificationToken: existingUser.verification_token
+    };
+  } 
+  // if token expires. create new token
+  const newToken = crypto.randomBytes(32).toString('hex');
+  const insertQuery = `
+INSERT INTO users (user_id, email, password_hash, first_name, last_name, role, status, verification_token, verification_token_expires_at) 
+VALUES($1,$2,$3,$4,$5,$6,FALSE,$7, NOW() + INTERVAL '24 hours')
+RETURNING *;
+`;
+  
+}
 
   // check whether the organization id existed or not 
     const checkOrg_Id = await query('SELECT org_id  , status FROM organizations WHERE org_id = $1', [org_id]);
@@ -82,7 +108,7 @@ if (roleCheck.rows.length === 0) {
       purpose: 'EMAIL_VERIFICATION' 
     },
     process.env.JWT_SECRET,
-    { expiresIn: '15m' }
+    { expiresIn: '15d' }
   );
 
     return {
@@ -200,7 +226,6 @@ await query(`INSERT INTO refresh_tokens(user_id, refresh_token, expires_at)VALUE
   [user.rows[0].user_id, refreshToken]
 );
 
-console.log(refreshToken);
 return {
   success: true,
   data:{
@@ -211,5 +236,49 @@ return {
   refreshToken
 };
 
+};
 
+export const refreshAccessToken = async ({ refreshToken }) => {
+  try {
+
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_SECRET
+    );
+
+    const tokenRecord = await query(`SELECT user_id FROM refresh_tokens WHERE refresh_token = $1`,[refreshToken]);
+
+    if (tokenRecord.rows.length === 0) {
+      return {
+        success: false,
+        message: 'Invalid refresh token'
+      };
+    }
+
+    const user = await query(`SELECT user_id, role FROM users WHERE user_id = $1`,[decoded.userId] );
+
+    const newAccessToken = jwt.sign(
+      {
+        userId: user.rows[0].user_id,
+        role: user.rows[0].role
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '7d'
+      }
+    );
+
+    return {
+      success: true,
+      accessToken: newAccessToken
+    };
+
+  } catch (error) {
+
+    return {
+      success: false,
+      message: 'Invalid or expired refresh token'
+    };
+
+  }
 };
