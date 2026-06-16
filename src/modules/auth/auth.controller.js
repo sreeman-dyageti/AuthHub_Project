@@ -72,7 +72,7 @@ export const verifyEmail = async (req, res) => {
         });
       }
 
-      const result = await verifyUserEmail({token});
+      const result = await verifyUserEmail(token);
       if (!result.success){
         return res.status(400).json({
           error: result.message
@@ -95,7 +95,7 @@ export const login = async (req, res) => {
   try {
       const {email, password} = req.body;
       // validation
-      if (!email || !password){
+      if (!email || !password.trim()){
         return res.status(400).json({error: 'email and password are required'});
       }
 
