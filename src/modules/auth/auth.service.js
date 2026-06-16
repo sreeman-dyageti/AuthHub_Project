@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { query } from "../../config/db.js";
+import {sendVerificationEmail} from "../../modules/service/email.service.js";
 
 // Custom User ID Generation
 const generateCustomId = (first_name, last_name) => {
@@ -11,14 +12,6 @@ const generateCustomId = (first_name, last_name) => {
   return crypto
     .createHash("sha256")
     .update(base, "utf8")
-    .digest("hex");
-};
-
-// Custom Email Hash
-const generateCustomEmailID = (email) => {
-  return crypto
-    .createHash("sha256")
-    .update(email.toLowerCase().trim(), "utf8")
     .digest("hex");
 };
 
@@ -38,11 +31,11 @@ const generateUserVerificationToken = (userId) => {
 
 // Register User
 export const registerUser = async ({email, password, first_name, last_name, org_id, role_name,}) => {
-  const emailHash = generateCustomEmailID(email);
-
+  
+  const normalizedEmail = email.toLowerCase().trim();
   // Check Existing User
   const userCheck = await query(
-    "SELECT user_id FROM users WHERE email = $1",[emailHash]);
+    "SELECT user_id FROM users WHERE email = $1",[normalizedEmail]);
 
   if (userCheck.rows.length > 0) {
     return {
@@ -91,7 +84,7 @@ export const registerUser = async ({email, password, first_name, last_name, org_
   const result = await query(
     `INSERT INTO users(user_id, email, password_hash, first_name, last_name, role, status)
     VALUES ($1,$2,$3,$4,$5,$6,FALSE) RETURNING user_id, email, first_name, last_name, role, created_at`,
-    [ userId, emailHash, passwordHash, first_name, last_name, role]);
+    [ userId, normalizedEmail, passwordHash, first_name, last_name, role]);
 
   const newUser = result.rows[0];
 
@@ -103,12 +96,23 @@ export const registerUser = async ({email, password, first_name, last_name, org_
     [verificationToken, userId]
   );
 
+  // Send Email
+  try {
+  await sendVerificationEmail(
+    normalizedEmail,
+    verificationToken
+  );
+} catch (error) {
+  console.error("Email sending failed:", error);
+}
+
   return {
     success: true,
     user: newUser,
-    verificationToken,
   };
 };
+
+
 
 // Verify Email
 export const verifyUserEmail = async (token) => {
@@ -164,14 +168,12 @@ const generateRefreshToken = (userId) => {
 };
 
 // Login
-export const loginUser = async ({
-  email,
-  password,
-}) => {
-  const emailHash = generateCustomEmailID(email);
+export const loginUser = async ({email,password}) => {
+
+  const normalizedEmail = email.toLowerCase().trim();
 
   const user = await query(`SELECT user_id, password_hash, status, role FROM users WHERE email = $1`,
-    [emailHash]
+    [normalizedEmail]
   );
 
   if (user.rows.length === 0) {

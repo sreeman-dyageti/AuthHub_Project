@@ -21,7 +21,7 @@ app.use('/v1/roles', rolesRouter);
 app.use('/v1/organisations', organisationRouter);
 app.use('/v1/userAuthority',userAuthorityRouter);
 
-app.listen(PORT, async () => {
+app.listen(PORT,"0.0.0.0", async () => {
   console.log(`AuthHub Server is running on port ${PORT}`);
 
   try {
