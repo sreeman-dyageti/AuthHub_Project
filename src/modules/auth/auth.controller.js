@@ -3,7 +3,7 @@ import { registerUser } from './auth.service.js';
 import { loginUser } from "./auth.service.js";
 import {verifyUserEmail} from "./auth.service.js";
 import { refreshAccessToken } from './auth.service.js';
-
+import { logoutUser as logoutUserService } from "./auth.service.js";
 
 // registration
 export const register = async (req, res) => {
@@ -38,7 +38,6 @@ export const register = async (req, res) => {
     if (result.needsVerification) {
       return res.status(200).json({
         message: result.message,
-        verificationToken: result.verificationToken
       });
     }
 
@@ -148,4 +147,29 @@ export const refreshToken = async (req, res) => {
     accessToken: result.accessToken
   });
 
+};
+
+// logout validation 
+export const logoutUser = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    const result = await logoutUserService({
+      refreshToken,
+      userId: req.user.userId,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: result.message,
+      });
+    }
+
+    return res.status(200).json({
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
 };

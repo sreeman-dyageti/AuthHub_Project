@@ -109,3 +109,41 @@ export const verifyOrgService = async (token) => {
     organisation: updateResult.rows[0],
   };
 };
+
+export const resendVerificationService = async (email) => {
+  const orgResult = await query(
+    "SELECT org_id , name , email , status FROM organizations WHERE LOWER(email) = LOWER($1);",
+    [email],
+  );
+  if (orgResult.rows.length === 0) {
+    return {
+      success: false,
+      message: "organisation not found ",
+    };
+  }
+  const organisaton = orgResult.rows[0];
+  if (organisaton.status == "ACTIVE") {
+    return {
+      success: false,
+      message: "organisation is already verified  and active ",
+    };
+  }
+  const verificationToken = generateOrgVerificationToken(organisaton.org_id);
+  const reverifedData = await query(
+    " UPDATE organizations SET verification_token = $1 WHERE org_id = $2 RETURNING org_id , name , email , domain , status",
+    [verificationToken, organisaton.org_id],
+  );
+  if (reverifedData.rows.length === 0) {
+    return {
+      success: false,
+      message: "re-verification failed ",
+    };
+  }
+  return {
+    success: true,
+    verificatonSent: true,
+    message: "verification token generated successfully ",
+    organisaton: reverifedData.rows[0],
+    verificationToken,
+  };
+};

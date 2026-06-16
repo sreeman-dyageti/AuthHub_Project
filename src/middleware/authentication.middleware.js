@@ -9,7 +9,13 @@ export const authentication = async (req, res, next)=>{
         });
     }
 
-const token = authHeader.split(' ')[1];
+const [scheme, token] = authHeader.split(' ');
+
+if (scheme !== 'Bearer' || !token) {
+    return res.status(401).json({
+      error: 'Authorization header must be: Bearer <accessToken>'
+    });
+}
 
 try {
   
@@ -23,9 +29,14 @@ try {
     next();
 
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        error: 'Access token expired'
+      });
+    }
 
     return res.status(401).json({
-      error: 'Invalid token'
+      error: 'Invalid access token'
     });
 
   }

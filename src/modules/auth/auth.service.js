@@ -95,7 +95,7 @@ export const registerUser = async ({email, password, first_name, last_name, org_
   await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`,
     [verificationToken, userId]
   );
-
+  
   // Send Email
   try {
   await sendVerificationEmail(
@@ -111,8 +111,6 @@ export const registerUser = async ({email, password, first_name, last_name, org_
     user: newUser,
   };
 };
-
-
 
 // Verify Email
 export const verifyUserEmail = async (token) => {
@@ -238,10 +236,7 @@ export const loginUser = async ({email,password}) => {
 export const refreshAccessToken = async ({ refreshToken }) => {
   try {
 
-    const decoded = jwt.verify(
-      refreshToken,
-      process.env.REFRESH_SECRET
-    );
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
 
     const tokenRecord = await query(`SELECT user_id FROM refresh_tokens WHERE refresh_token = $1`,[refreshToken]);
 
@@ -284,4 +279,47 @@ export const refreshAccessToken = async ({ refreshToken }) => {
     };
 
   }
+};
+
+// logout
+export const logoutUser = async ({ refreshToken, userId }) => {
+  if (!refreshToken) {
+    return {
+      success: false,
+      message: "Refresh token required",
+    };
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+
+    if (decoded.userId !== userId) {
+      return {
+        success: false,
+        message: "Invalid refresh token",
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: "Invalid or expired refresh token",
+    };
+  }
+
+  const deletedToken = await query(
+    `DELETE FROM refresh_tokens WHERE refresh_token = $1 AND user_id = $2 RETURNING refresh_token`,
+    [refreshToken, userId],
+  );
+
+  if (deletedToken.rows.length === 0) {
+    return {
+      success: false,
+      message: "Session not found",
+    };
+  }
+
+  return {
+    success: true,
+    message: "Logged out successfully",
+  };
 };

@@ -1,8 +1,9 @@
 import express from "express";
-import { register, login, verifyEmail } from "./auth.controller.js";
+import { register, login, verifyEmail , logoutUser } from "./auth.controller.js";
 import { authentication} from "../../middleware/authentication.middleware.js";
 import {authorize} from "../../middleware/authorization.middleware.js"
 import { refreshToken } from "./auth.controller.js";
+
 
 // Registration router endpoint
 const router = express.Router();
@@ -33,5 +34,6 @@ router.get('/admin', authentication, authorize(["admin"]), (req, res) => {
 // refresh Token
   router.post('/refresh-token',refreshToken);
 
-export default router;
+  router.post('/logout' , authentication,logoutUser);
 
+export default router;
