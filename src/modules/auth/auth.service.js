@@ -154,6 +154,40 @@ export const verifyUserEmail = async (token) => {
   }
 };
 
+// resend verification email 
+export const resendVerificationEmail = async (email) =>{
+  const normalizedEmail = email.toLowerCase.trim();
+
+  const userResult = await query(`SELECT user_id, status FROM users WHERE email = $1, [nomalizedEmail]`);
+
+  if (userResult.rows.lenght === 0){
+    return {
+      success: false,
+      message: "user not found!"
+    }
+  }
+   
+  const user = userResult.rows[0];
+  if (user.status === true){
+    return{
+      success: true,
+      message: "your email already verified!"
+    }
+  }
+
+  const verificationToken = generateUserVerificationToken(user.user_id);
+
+  await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`,[verificationToken, user.user_id]);
+
+  await sendVerificationEmail(normalizedEmail,verificationToken
+);
+
+  return {
+    success: true,
+    message: "Verification email sent successfully"
+  };
+};
+
 // Refresh Token Generator
 const generateRefreshToken = (userId) => {
   return jwt.sign(
