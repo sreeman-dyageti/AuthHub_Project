@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login, verifyEmail , logoutUser } from "./auth.controller.js";
+import { register, login, verifyEmail , logoutUser,  resendVerification } from "./auth.controller.js";
 import { authentication} from "../../middleware/authentication.middleware.js";
 import {authorize} from "../../middleware/authorization.middleware.js"
 import { refreshToken } from "./auth.controller.js";
@@ -12,6 +12,9 @@ router.post('/register',register);
 
 // verify-email endpoint
 router.get('/verify-email', verifyEmail);
+
+// resend verify-email endpoint
+router.post("/resend-verification", resendVerification);
 
 // Login router endpoint
 router.post('/login',login);

@@ -1,9 +1,12 @@
 import validator from "validator"; 
-import { registerUser } from './auth.service.js';
-import { loginUser } from "./auth.service.js";
-import {verifyUserEmail} from "./auth.service.js";
-import { refreshAccessToken } from './auth.service.js';
-import { logoutUser as logoutUserService } from "./auth.service.js";
+import {
+  registerUser, 
+  verifyUserEmail,
+  resendVerificationEmail,
+  loginUser, 
+  refreshAccessToken, 
+  logoutUser as logoutUserService
+ } from "./auth.service.js";
 
 // registration
 export const register = async (req, res) => {
@@ -86,6 +89,37 @@ export const verifyEmail = async (req, res) => {
         error: error.message
       })    
     }
+}
+
+// resend email verification 
+export const resendVerification = async (req, res)=>{
+  try {
+    const {email} = req.body;
+
+    if(!email){
+      return res.status(200).json({
+        error:"Email is required!"
+      })
+    }
+    const result = await resendVerificationEmail({ email });
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: result.message
+      });
+    }   
+
+    return res.status(200).json({
+      message: result.message
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message
+    });
+    
+  }
+
 }
 
 // Login
