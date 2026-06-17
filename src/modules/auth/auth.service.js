@@ -2,17 +2,15 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { query } from "../../config/db.js";
-import {sendVerificationEmail} from "../../modules/service/email.service.js";
+import { sendVerificationEmail } from "../../modules/service/email.service.js";
+import { createAuditLogs } from "../audit/audit.service.js";
 
 // Custom User ID Generation
 const generateCustomId = (first_name, last_name) => {
   const randomNum = crypto.randomInt(1000, 10000);
   const base = `${first_name.toLowerCase().trim()}_${last_name.toLowerCase().trim()}_${randomNum}`;
 
-  return crypto
-    .createHash("sha256")
-    .update(base, "utf8")
-    .digest("hex");
+  return crypto.createHash("sha256").update(base, "utf8").digest("hex");
 };
 
 // User Verification JWT
@@ -25,17 +23,24 @@ const generateUserVerificationToken = (userId) => {
     process.env.JWT_SECRET,
     {
       expiresIn: "15m",
-    }
+    },
   );
 };
 
 // Register User
-export const registerUser = async ({email, password, first_name, last_name, org_id, role_name,}) => {
-  
+export const registerUser = async ({
+  email,
+  password,
+  first_name,
+  last_name,
+  org_id,
+  role_name,
+}) => {
   const normalizedEmail = email.toLowerCase().trim();
   // Check Existing User
-  const userCheck = await query(
-    "SELECT user_id FROM users WHERE email = $1",[normalizedEmail]);
+  const userCheck = await query("SELECT user_id FROM users WHERE email = $1", [
+    normalizedEmail,
+  ]);
 
   if (userCheck.rows.length > 0) {
     return {
@@ -44,8 +49,11 @@ export const registerUser = async ({email, password, first_name, last_name, org_
     };
   }
 
-  // Check Organization 
-  const orgCheck = await query("SELECT org_id, status FROM organizations WHERE org_id = $1",[org_id]);
+  // Check Organization
+  const orgCheck = await query(
+    "SELECT org_id, status FROM organizations WHERE org_id = $1",
+    [org_id],
+  );
 
   if (orgCheck.rows.length === 0) {
     return {
@@ -65,7 +73,10 @@ export const registerUser = async ({email, password, first_name, last_name, org_
   // Check Role
   const role = role_name.trim().toLowerCase();
 
-  const roleCheck = await query("SELECT role_id FROM roles WHERE LOWER(role_name) = $1", [role]);
+  const roleCheck = await query(
+    "SELECT role_id FROM roles WHERE LOWER(role_name) = $1",
+    [role],
+  );
 
   if (roleCheck.rows.length === 0) {
     return {
@@ -84,27 +95,48 @@ export const registerUser = async ({email, password, first_name, last_name, org_
   const result = await query(
     `INSERT INTO users(user_id, email, password_hash, first_name, last_name, role, status)
     VALUES ($1,$2,$3,$4,$5,$6,FALSE) RETURNING user_id, email, first_name, last_name, role, created_at`,
-    [ userId, normalizedEmail, passwordHash, first_name, last_name, role]);
+    [userId, normalizedEmail, passwordHash, first_name, last_name, role],
+  );
 
   const newUser = result.rows[0];
+  console.log("Role Check:", roleCheck.rows[0]);
+  console.log("User ID:", userId);
+  console.log("Org ID:", org_id);
+  try {
+    const authorityResult = await query(
+      `
+    INSERT INTO user_authority (
+      user_id,
+      org_id,
+      role_id,
+      status
+    )
+    VALUES ($1, $2, $3, $4)
+    RETURNING *
+    `,
+      [userId, org_id, roleCheck.rows[0].role_id, "ACTIVE"],
+    );
+
+    console.log("User Authority Created:", authorityResult.rows[0]);
+  } catch (error) {
+    console.error("User Authority Insert Failed:", error);
+  }
 
   // Generate JWT Verification Token
   const verificationToken = generateUserVerificationToken(userId);
 
   // Save Token
-  await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`,
-    [verificationToken, userId]
-  );
-  
+  await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`, [
+    verificationToken,
+    userId,
+  ]);
+
   // Send Email
   try {
-  await sendVerificationEmail(
-    normalizedEmail,
-    verificationToken
-  );
-} catch (error) {
-  console.error("Email sending failed:", error);
-}
+    await sendVerificationEmail(normalizedEmail, verificationToken);
+  } catch (error) {
+    console.error("Email sending failed:", error);
+  }
 
   return {
     success: true,
@@ -115,10 +147,7 @@ export const registerUser = async ({email, password, first_name, last_name, org_
 // Verify Email
 export const verifyUserEmail = async (token) => {
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.purpose !== "EMAIL_VERIFICATION") {
       return {
@@ -127,8 +156,9 @@ export const verifyUserEmail = async (token) => {
       };
     }
 
-    const result = await query( `SELECT user_id FROM users WHERE verification_token = $1`,
-      [token]
+    const result = await query(
+      `SELECT user_id FROM users WHERE verification_token = $1`,
+      [token],
     );
 
     if (result.rows.length === 0) {
@@ -138,8 +168,9 @@ export const verifyUserEmail = async (token) => {
       };
     }
 
-    await query(` UPDATE users SET status = TRUE, verification_token = NULL WHERE user_id = $1`,
-      [result.rows[0].user_id]
+    await query(
+      ` UPDATE users SET status = TRUE, verification_token = NULL WHERE user_id = $1`,
+      [result.rows[0].user_id],
     );
 
     return {
@@ -154,58 +185,61 @@ export const verifyUserEmail = async (token) => {
   }
 };
 
-// resend verification email 
-export const resendVerificationEmail = async ({email}) =>{
+// resend verification email
+export const resendVerificationEmail = async ({ email }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
-  const userResult = await query(`SELECT user_id, status FROM users WHERE email = $1`, [ normalizedEmail]);
+  const userResult = await query(
+    `SELECT user_id, status FROM users WHERE email = $1`,
+    [normalizedEmail],
+  );
 
-  if (userResult.rows.length === 0){
+  if (userResult.rows.length === 0) {
     return {
       success: false,
-      message: "user not found!"
-    }
+      message: "user not found!",
+    };
   }
-   
+
   const user = userResult.rows[0];
-  if (user.status === true){
-    return{
+  if (user.status === true) {
+    return {
       success: false,
-      message: "your email already verified!"
-    }
+      message: "your email already verified!",
+    };
   }
 
   const verificationToken = generateUserVerificationToken(user.user_id);
 
-  await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`,[verificationToken, user.user_id]);
+  await query(`UPDATE users SET verification_token = $1 WHERE user_id = $2`, [
+    verificationToken,
+    user.user_id,
+  ]);
 
-  await sendVerificationEmail(normalizedEmail,verificationToken);
+  await sendVerificationEmail(normalizedEmail, verificationToken);
 
   return {
     success: true,
-    message: "Verification email sent successfully"
+    message: "Verification email sent successfully",
   };
 };
 
 // Refresh Token Generator
 const generateRefreshToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.REFRESH_SECRET,
-    {
-      expiresIn: "7d",
-    }
-  );
+  return jwt.sign({ userId }, process.env.REFRESH_SECRET, {
+    expiresIn: "7d",
+  });
 };
 
 // Login
-export const loginUser = async ({email,password}) => {
-
+export const loginUser = async ({ email, password }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await query(`SELECT user_id, password_hash, status, role FROM users WHERE email = $1`,
-    [normalizedEmail]
+  const user = await query(
+    `SELECT u.user_id , u.email , u.password_hash , u.status , ua.org_id , r.role_name FROM users u INNER JOIN user_authority ua ON ua.user_id = u.user_id INNER JOIN roles r ON r.role_id = ua.role_id WHERE LOWER(u.email) = LOWER($1)`,
+    [normalizedEmail],
   );
+  console.log("LOGIN QUERY RESULT:", user.rows);
 
   if (user.rows.length === 0) {
     return {
@@ -221,10 +255,7 @@ export const loginUser = async ({email,password}) => {
     };
   }
 
-  const isMatch = await bcrypt.compare(
-    password,
-    user.rows[0].password_hash
-  );
+  const isMatch = await bcrypt.compare(password, user.rows[0].password_hash);
 
   if (!isMatch) {
     return {
@@ -237,80 +268,89 @@ export const loginUser = async ({email,password}) => {
   const accessToken = jwt.sign(
     {
       userId: user.rows[0].user_id,
-      role: user.rows[0].role,
+      role: user.rows[0].role_name,
     },
     process.env.JWT_SECRET,
     {
       expiresIn: "15m",
-    }
+    },
   );
 
-  const refreshToken = generateRefreshToken(
-    user.rows[0].user_id
-  );
+  const refreshToken = generateRefreshToken(user.rows[0].user_id);
 
-  await query(`INSERT INTO refresh_tokens( user_id, refresh_token, expires_at)
+  await query(
+    `INSERT INTO refresh_tokens( user_id, refresh_token, expires_at)
     VALUES($1,$2,NOW() + INTERVAL '7 days')`,
-    [user.rows[0].user_id, refreshToken]
+    [user.rows[0].user_id, refreshToken],
   );
+  await createAuditLogs({
+    user_id: user.rows[0].user_id,
+    org_id: user.rows[0].org_id,
+    email: user.rows[0].email,
+    role_name: user.rows[0].role_name,
+    action: "LOGIN",
+  });
 
   return {
     success: true,
     data: {
       user_id: user.rows[0].user_id,
-      role: user.rows[0].role,
+      org_id: user.rows[0].org_id,
+      role: user.rows[0].role_name,
     },
     accessToken,
     refreshToken,
   };
 };
 
-// generate new refresh token 
+// generate new refresh token
 export const refreshAccessToken = async ({ refreshToken }) => {
   try {
-
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
 
-    const tokenRecord = await query(`SELECT user_id FROM refresh_tokens WHERE refresh_token = $1`,[refreshToken]);
+    const tokenRecord = await query(
+      `SELECT user_id FROM refresh_tokens WHERE refresh_token = $1`,
+      [refreshToken],
+    );
 
     if (tokenRecord.rows.length === 0) {
       return {
         success: false,
-        message: 'Invalid refresh token'
+        message: "Invalid refresh token",
       };
     }
 
-    const user = await query(`SELECT user_id, role FROM users WHERE user_id = $1`,[decoded.userId] );
+    const user = await query(
+      `SELECT user_id, role FROM users WHERE user_id = $1`,
+      [decoded.userId],
+    );
 
-  if (user.rows.length === 0) {
-  return {
-    success: false,
-    message: 'User not found'
-  };
-}
+    if (user.rows.length === 0) {
+      return {
+        success: false,
+        message: "User not found",
+      };
+    }
     const newAccessToken = jwt.sign(
       {
         userId: user.rows[0].user_id,
-        role: user.rows[0].role
+        role: user.rows[0].role,
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: '15m'
-      }
+        expiresIn: "15m",
+      },
     );
 
     return {
       success: true,
-      accessToken: newAccessToken
+      accessToken: newAccessToken,
     };
-
   } catch (error) {
-
     return {
       success: false,
-      message: 'Invalid or expired refresh token'
+      message: "Invalid or expired refresh token",
     };
-
   }
 };
 
