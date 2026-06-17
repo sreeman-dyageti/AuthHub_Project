@@ -44,8 +44,7 @@ export const createOrg = async (req, res) => {
       });
     }
     return res.status(201).json({
-      message:
-        "organisation created successfully. please verify organisation. ",
+      message:"Organisation created successfully. Verification email sent.",
       data: result,
     });
   } catch (error) {
@@ -58,7 +57,7 @@ export const createOrg = async (req, res) => {
 };
 export const verifyOrg = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { token } = req.query;
     const result = await verifyOrgService(token);
     return res.status(200).json(result);
   } catch (error) {

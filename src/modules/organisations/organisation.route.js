@@ -4,6 +4,6 @@ import { verifyOrg } from "./organisation.controller.js";
 import { resendVerification } from "./organisation.controller.js";
 const router = express.Router();
 router.post("/create", createOrg);
-router.get("/verify/:token", verifyOrg);
+router.get("/verify", verifyOrg);
 router.post("/resend-verification", resendVerification);
 export default router;

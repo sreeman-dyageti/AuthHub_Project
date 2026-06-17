@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { query } from "../../config/db.js";
-import { error } from "console";
+import { sendOrganizationVerificationEmail } from "../../modules/service/email.service.js";
 
 const generateOrgId = (name) => {
   const cleanName = name.replace(/\s+/gi, "");
@@ -42,13 +42,13 @@ export const createOrgService = async ({ name, email, domain }) => {
       "UPDATE organizations SET verification_token = $1 WHERE org_id = $2 RETURNING org_id , name , email , domain , status , created_at",
       [verificationToken, organisation.org_id],
     );
+ await sendOrganizationVerificationEmail(updateResult.rows[0].email, verificationToken);
     return {
       success: true,
       verificationResent: true,
       message:
         "organisation already exists but it is not verified ,new verification token generated ",
-      organisation: updateResult.rows[0],
-      verificationToken,
+      organisation: updateResult.rows[0]
     };
   }
 
@@ -63,87 +63,121 @@ export const createOrgService = async ({ name, email, domain }) => {
     domain,
     verificationToken,
   ]);
+ 
+  await sendOrganizationVerificationEmail(email, verificationToken);
+
   return {
     success: true,
     organisation: result.rows[0],
-    verificationToken,
   };
 };
 
 export const verifyOrgService = async (token) => {
+  try {
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    if (decoded.purpose !== "ORG_VERIFICATION") {
+      return {
+        success: false,
+        message: "Invalid verification token"
+      };
+    }
+
+    const orgResult = await query(
+      "SELECT * FROM organizations WHERE verification_token = $1",
+      [token]
+    );
+
+    if (orgResult.rows.length === 0) {
+      return {
+        success: false,
+        message: "Invalid verification token"
+      };
+    }
+
+    const organisation = orgResult.rows[0];
+
+    const updateResult = await query(` UPDATE organizations SET status = 'ACTIVE', verified_at = NOW(), verification_token = NULL
+      WHERE org_id = $1 RETURNING org_id, name, email, domain, status, verified_at
+      `,[organisation.org_id]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return {
+        success: false,
+        message: "Failed to verify organisation"
+      };
+    }
+
+    return {
+      success: true,
+      message: "Organisation verified successfully.",
+      organisation: updateResult.rows[0]
+    };
+
+  } catch (error) {
+
+    return {
+      success: false,
+      message: "Verification token expired or invalid"
+    };
+
+  }
+};
+
+export const resendVerificationService = async (email) => {
+
   const orgResult = await query(
-    "SELECT * FROM organizations WHERE verification_token = $1",
-    [token],
+    `SELECT org_id, name, email, status
+    FROM organizations
+    WHERE LOWER(email) = LOWER($1)`,
+    [email]
   );
 
   if (orgResult.rows.length === 0) {
     return {
       success: false,
-      message: "Invalid verification token",
+      message: "Organisation not found"
     };
   }
 
   const organisation = orgResult.rows[0];
 
-  const updateResult = await query(
-    `
-      UPDATE organizations
-      SET status = 'ACTIVE',
-          verified_at = NOW(),
-          verification_token = NULL
-      WHERE org_id = $1
-      RETURNING org_id , name , email , domain , status , verified_at
-    `,
-    [organisation.org_id],
-  );
-  if (updateResult.rows.length === 0) {
+  if (organisation.status === "ACTIVE") {
     return {
       success: false,
-      message: "failed to verify organisaton ",
+      message: "Organisation is already verified and active"
     };
   }
 
-  return {
-    success: true,
-    message: "Organisation verified successfully.",
-    organisation: updateResult.rows[0],
-  };
-};
+  const verificationToken =
+    generateOrgVerificationToken(
+      organisation.org_id
+    );
 
-export const resendVerificationService = async (email) => {
-  const orgResult = await query(
-    "SELECT org_id , name , email , status FROM organizations WHERE LOWER(email) = LOWER($1);",
-    [email],
-  );
-  if (orgResult.rows.length === 0) {
-    return {
-      success: false,
-      message: "organisation not found ",
-    };
-  }
-  const organisaton = orgResult.rows[0];
-  if (organisaton.status == "ACTIVE") {
-    return {
-      success: false,
-      message: "organisation is already verified  and active ",
-    };
-  }
-  const verificationToken = generateOrgVerificationToken(organisaton.org_id);
   const reverifedData = await query(
-    " UPDATE organizations SET verification_token = $1 WHERE org_id = $2 RETURNING org_id , name , email , domain , status",
-    [verificationToken, organisaton.org_id],
+    ` UPDATE organizations SET verification_token = $1 WHERE org_id = $2
+    RETURNING org_id, name, email, domain, status`,
+    [verificationToken, organisation.org_id]
   );
+
   if (reverifedData.rows.length === 0) {
     return {
       success: false,
-      message: "re-verification failed ",
+      message: "Re-verification failed"
     };
   }
+
+  await sendOrganizationVerificationEmail(organisation.email, verificationToken );
+
   return {
     success: true,
-    verificatonSent: true,
-    message: "verification token generated successfully ",
-    organisaton: reverifedData.rows[0],
-    verificationToken,
+    verificationSent: true,
+    message: "Verification email sent successfully",
+    organisation: reverifedData.rows[0]
   };
 };

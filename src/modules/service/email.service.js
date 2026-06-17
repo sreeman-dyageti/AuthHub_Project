@@ -23,3 +23,30 @@ export const sendVerificationEmail = async ( email, verificationToken) => {
             <p>This link expires in 15 minutes.</p>`
   });
 };
+
+export const sendOrganizationVerificationEmail = async (email, verificationToken) => {
+
+  const verificationUrl =
+    `http://192.168.68.108:8080/v1/organisations/verify?token=${verificationToken}`;
+
+  const info = await transporter.sendMail({
+    from: `"AuthHub" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verify Your Organization",
+    html: 
+     ` <h2>Organization Verification</h2>
+
+      <p>Please verify your organization.</p>
+
+      <a href="${verificationUrl}">
+        Verify Organization
+      </a>
+
+      <p>This link expires in 15 minutes.</p>
+    `,
+  });
+
+  console.log(
+    "Organization email sent successfully"
+  );
+};
